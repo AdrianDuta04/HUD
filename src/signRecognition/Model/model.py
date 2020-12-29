@@ -1,5 +1,6 @@
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D , MaxPooling2D, Dense , Flatten , Dropout , BatchNormalization,Activation
+from tensorflow.keras.layers import Conv2D , MaxPooling2D, Dense , Flatten , Dropout , BatchNormalization
+from time import time
 
 height = 30
 width = 30
@@ -36,7 +37,9 @@ model.add(Dense(43, activation='softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-model.save("sign_recognition_model.h5")
+now = time()
+model.save("../compiled_models/old_models/sign_recognition_model_last.h5")
+model.save("../compiled_models/sign_recognition_model"+str(int(now))+".h5")
 
 model.summary()
 

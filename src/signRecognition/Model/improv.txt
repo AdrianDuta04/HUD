@@ -1,0 +1,5 @@
+Possible improvement :
+- train.py :  ~29.12.2020~
+    -add data augumentation
+    -add contrast enhacement
+    -refractor code and move accuracy plots to separate python file for common use
