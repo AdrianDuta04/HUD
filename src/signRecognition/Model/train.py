@@ -1,3 +1,5 @@
+from skimage import transform
+from skimage import io
 import os
 import numpy as np
 from PIL import Image
@@ -8,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from tensorflow.python.keras.utils.np_utils import to_categorical
 
-NUM_EPOCHS = 30
+NUM_EPOCHS = 10
 BATCH_SIZE = 64
 
 labelNames = open("../../../data/signnames.csv").read().strip().split("\n")[1:]
@@ -27,12 +29,10 @@ for (iterator,row) in enumerate(rows_for_training):
     (label, imagePath) = row.strip().split(",")[-2:]
     # derive the full path to the image file and load it
     imagePath = os.path.sep.join(["../../../data/", imagePath])
-    image = Image.open(imagePath)
-    image = image.resize((32, 32))
-    # update the list of data and labels, respectively
+    image = io.imread(imagePath)
+    image = transform.resize(image, (32, 32))
     data_for_training.append(image)
     labels_for_training.append(int(label))
-    # convert the data and labels to NumPy arrays
 
 data_for_training = np.array(data_for_training)
 labels_for_training = np.array(labels_for_training)
@@ -68,4 +68,5 @@ plt.xlabel('epochs')
 plt.ylabel('loss')
 plt.legend()
 plt.show()
+
 

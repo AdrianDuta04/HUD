@@ -3,3 +3,6 @@ Possible improvement :
     -add data augumentation
     -add contrast enhacement
     -refractor code and move accuracy plots to separate python file for common use
+ - config.py ~04.01.2021~
+    -create config.py and add all constants to ansure consistency between scripts
+   -train.py : save grafics for later use
