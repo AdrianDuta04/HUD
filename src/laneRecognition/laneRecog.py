@@ -31,12 +31,7 @@ def draw_lines(img, lines, color=(255, 0, 0), thickness=7):
             x1, y1, x2, y2 = line
             if abs(x1 - x2) > 800:
                 x2 = int(x1 + (x2 - x1) / 2)
-                coord =[[x1,y1],[x1/1.2,y1/1.1],[int((x1+x2)/2.8),int((y1+y2)/2.5)],[x2/1.1,y2],[int((x1+x2)/2.6),int((y1+y2)/2.8)]]
-                print(coord)
-                coord=np.array(coord,np.int32)
-                coord=coord.reshape((-1,1,2))
-                isClosed=False
-                img=cv2.polylines(img,[coord],isClosed,color,thickness)
+                cv2.line(img, (x1, y1), (x2, y2), color, thickness)
             else:
                 cv2.line(img, (x1, y1), (x2, y2), color, thickness)
     return img
@@ -65,7 +60,6 @@ def average_slope_intercept(image, lines):
     left_fit = []
     right_fit = []
     left_line = []
-
     for line in lines:
         x1, y1, x2, y2 = line.reshape(4)
         parameters = np.polyfit((x1, x2), (y1, y2), 1)
@@ -79,40 +73,42 @@ def average_slope_intercept(image, lines):
             right_fit.append((slope, intercept))
             right_fit_average = np.average(right_fit, axis=0)
             right_line = create_coordinates(image, right_fit_average)
-    if len(left_line) == 0  :
-        left_line[0] = right_line[0] +300
+    if len(left_line) == 0:
+        left_line[0] = right_line[0] + 300
         left_line[1] = right_line[1]
         left_line[2] = right_line[2] + 300
         left_line[3] = right_line[3]
-
-    elif abs(right_line[0] - right_line[2]) >= 800 :
-        left_line[0] = right_line[0] -900
-        left_line[1] = right_line[1]
-        left_line[2] = right_line[2] + 320
-        left_line[3] = right_line[3] +20
+    if left_line[0]<0 :
+        left_line[0]=0
+    if left_line[2] < 0:
+        left_line[2] = left_line[3]
+    print(left_line)
     return np.array([left_line, right_line])
 
 
-cap = cv2.VideoCapture("test_video/test2.mp4")
+cap = cv2.VideoCapture("test_video/challenge.mp4")
 i = 0
 while cap.isOpened():
     try:
         _, frame = cap.read()
+        copy_frame = frame
+        frame = cv2.addWeighted(frame, 1, frame, 0.1, 2)
         if frame is None:
             print("end of video file")
             break
         combo_image = frame
-        if i % 24 == 0:
+        if i % 12 == 0:
             canny_image = canny_edge_detector(frame)
             cropped_image = -interested_region(canny_image)
-            lines = cv2.HoughLinesP(cropped_image, 2, np.pi / 180, 100,
-                                    np.array([]), minLineLength=40,
-                                    maxLineGap=5)
+            lines = cv2.HoughLinesP(cropped_image, 2, np.pi / 180, 50,
+                                    np.array([]), minLineLength=20,
+                                    maxLineGap=3)
 
             averaged_lines = average_slope_intercept(frame, lines)
         line_image = draw_lines(frame, averaged_lines)
-        combo_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+        combo_image = cv2.addWeighted(copy_frame, 0.1, line_image, 1, 2)
         cv2.imshow("results", combo_image)
+        time.sleep(0.1)
         i += 1
     except:
         print("Image quality does not allow line recognition")
