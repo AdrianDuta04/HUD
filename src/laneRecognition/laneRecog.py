@@ -79,16 +79,21 @@ def average_slope_intercept(image, lines):
             right_fit.append((slope, intercept))
             right_fit_average = np.average(right_fit, axis=0)
             right_line = create_coordinates(image, right_fit_average)
-    if len(left_line) == 0 :
-        left_line[0] = right_line[0] + 300
+    if len(left_line) == 0  :
+        left_line[0] = right_line[0] +300
         left_line[1] = right_line[1]
         left_line[2] = right_line[2] + 300
         left_line[3] = right_line[3]
-        print("completer")
+
+    elif abs(right_line[0] - right_line[2]) >= 800 :
+        left_line[0] = right_line[0] -900
+        left_line[1] = right_line[1]
+        left_line[2] = right_line[2] + 320
+        left_line[3] = right_line[3] +20
     return np.array([left_line, right_line])
 
 
-cap = cv2.VideoCapture("test_video/challenge.mp4")
+cap = cv2.VideoCapture("test_video/test2.mp4")
 i = 0
 while cap.isOpened():
     try:
@@ -109,7 +114,6 @@ while cap.isOpened():
         combo_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
         cv2.imshow("results", combo_image)
         i += 1
-        time.sleep(1)
     except:
         print("Image quality does not allow line recognition")
     # When the below two will be true and will press the 'q' on
