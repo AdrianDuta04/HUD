@@ -1,13 +1,7 @@
-import os
-import re
-import time
 
+import time
 import cv2
 import numpy as np
-
-import matplotlib.pyplot as plt
-
-theta = np.pi / 180
 
 
 def interested_region(img):
@@ -86,7 +80,7 @@ def average_slope_intercept(image, lines):
     return np.array([left_line, right_line])
 
 
-cap = cv2.VideoCapture("test_video/challenge.mp4")
+cap = cv2.VideoCapture("test_video/solidYellowLeft.mp4")
 i = 0
 while cap.isOpened():
     try:
@@ -108,7 +102,6 @@ while cap.isOpened():
         line_image = draw_lines(frame, averaged_lines)
         combo_image = cv2.addWeighted(copy_frame, 0.1, line_image, 1, 2)
         cv2.imshow("results", combo_image)
-        time.sleep(0.1)
         i += 1
     except:
         print("Image quality does not allow line recognition")
