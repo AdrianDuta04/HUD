@@ -7,6 +7,7 @@ import numpy
 from PIL import Image
 from tensorflow import keras
 
+
 def classify(file_path):
     global label_packed
     image = Image.open(file_path)
@@ -22,7 +23,7 @@ def classify(file_path):
 def show_classify_button(file_path):
     classify_b = Button(top, text="Classify Image", command=lambda: classify(file_path), padx=10, pady=5)
     classify_b.configure(background='#364156', foreground='white', font=('arial', 10, 'bold'))
-    classify_b.pack(side=BOTTOM)
+    classify_b.pack(side=BOTTOM, pady=50)
     classify_b.place(relx=0.79, rely=0.46)
 
 
@@ -41,8 +42,17 @@ def upload_image():
         pass
 
 
-model = keras.models.load_model("trained_models/sign_recognition_model_last.h5")
-model.summary()
+def load_model():
+    global model
+    model = keras.models.load_model("trained_models/sign_recognition_model_last.h5")
+    image_dummy = Image.open("../../data/test/00000.png")
+    image_dummy = image_dummy.resize((32, 32))
+    image_dummy = numpy.expand_dims(image_dummy, axis=0)
+    image_dummy = numpy.array(image_dummy)
+    pred_dummy = model.predict_classes([image_dummy])[0]
+
+
+load_model()
 # dictionary to label all traffic signs class.
 classes = {1: 'Speed limit (20km/h)',
            2: 'Speed limit (30km/h)',
