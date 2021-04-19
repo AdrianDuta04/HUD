@@ -3,9 +3,8 @@ import os
 from skimage import io, transform
 from sklearn.metrics import accuracy_score
 import numpy as np
-from PIL import Image
 from tensorflow import keras
-import pandas as pd
+
 
 model = keras.models.load_model("../trained_models/sign_recognition_model_last.h5")
 model.summary()
