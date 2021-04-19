@@ -1,6 +1,6 @@
 import os
 
-from skimage import io , transform
+from skimage import io, transform
 from sklearn.metrics import accuracy_score
 import numpy as np
 from PIL import Image
@@ -9,7 +9,6 @@ import pandas as pd
 
 model = keras.models.load_model("../trained_models/sign_recognition_model_last.h5")
 model.summary()
-
 
 # y_test = pd.read_csv('../../../data/Test.csv')
 # 
@@ -26,11 +25,10 @@ model.summary()
 # X_test=np.array(data)
 
 data = []
-labels=[]
+labels = []
 rows = open("../../../data/Test.csv").read().strip().split("\n")[1:]
 
-
-for (iterator,row) in enumerate(rows):
+for (iterator, row) in enumerate(rows):
     (label, imagePath) = row.strip().split(",")[-2:]
     imagePath = os.path.sep.join(["../../../data/", imagePath])
     image = io.imread(imagePath)
@@ -39,9 +37,7 @@ for (iterator,row) in enumerate(rows):
     labels.append(int(label))
 
 data = np.array(data)
-labels=np.array(labels)
-
+labels = np.array(labels)
 
 pred = model.predict_classes(data)
 print(accuracy_score(labels, pred))
-
