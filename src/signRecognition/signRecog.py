@@ -53,7 +53,6 @@ def load_model():
 
 
 load_model()
-# dictionary to label all traffic signs class.
 classes = {1: 'Speed limit (20km/h)',
            2: 'Speed limit (30km/h)',
            3: 'Speed limit (50km/h)',
@@ -98,7 +97,6 @@ classes = {1: 'Speed limit (20km/h)',
            42: 'End of no passing',
            43: 'End no passing veh > 3.5 tons'}
 
-# initialise GUI
 top = tk.Tk()
 top.geometry('800x600')
 top.title('Traffic sign classification')
