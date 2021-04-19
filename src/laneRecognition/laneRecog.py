@@ -1,4 +1,3 @@
-
 import time
 import cv2
 import numpy as np
@@ -10,11 +9,7 @@ def interested_region(img):
         [(200, height), (1100, height), (550, 250)]
     ])
     mask = np.zeros_like(img)
-
-    # Fill poly-function deals with multiple polygon
     cv2.fillPoly(mask, polygons, 255)
-
-    # Bitwise operation between canny image and mask image
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
@@ -32,9 +27,7 @@ def draw_lines(img, lines, color=(255, 0, 0), thickness=7):
 
 
 def canny_edge_detector(image):
-    # Convert the image color to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    # Reduce noise from the image
     blur = cv2.GaussianBlur(gray_image, (5, 5), 0)
     canny = cv2.Canny(blur, 50, 150)
     return canny
@@ -72,8 +65,8 @@ def average_slope_intercept(image, lines):
         left_line[1] = right_line[1]
         left_line[2] = right_line[2] + 300
         left_line[3] = right_line[3]
-    if left_line[0]<0 :
-        left_line[0]=0
+    if left_line[0] < 0:
+        left_line[0] = 0
     if left_line[2] < 0:
         left_line[2] = left_line[3]
     print(left_line)
@@ -105,16 +98,8 @@ while cap.isOpened():
         i += 1
     except:
         print("Image quality does not allow line recognition")
-    # When the below two will be true and will press the 'q' on
-    # our keyboard, we will break out from the loop
-
-    # # wait 0 will wait for infinitely between each frames.
-    # 1ms will wait for the specified time only between each frames
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# close the video file
 cap.release()
-
-# destroy all the windows that is currently on
 cv2.destroyAllWindows()
