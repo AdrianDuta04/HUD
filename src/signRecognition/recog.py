@@ -7,9 +7,10 @@ def filter_regions(rects):
     x_array = []
     new_rects = []
     for i in range(len(rects)):
-        if rects[i][0] not in x_array and rects[i][0] > 0 and rects[i][1] > 0 and\
+        if rects[i][0] not in x_array and rects[i][0] > 0 and rects[i][1] > 0 and \
                 1100 < rects[i][2] * rects[i][3] < 2500 and \
-                (rects[i][2] == rects[i][3] or rects[i][3]-rects[i][3]/8 <= rects[i][2] <= rects[i][3]+rects[i][3]/8):
+                (rects[i][2] == rects[i][3] or rects[i][3] - rects[i][3] / 8 <= rects[i][2] <= rects[i][3] + rects[i][
+                    3] / 8):
             new_rects.append(rects[i])
             x_array.append(rects[i][0])
     return new_rects
