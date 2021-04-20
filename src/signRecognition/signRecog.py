@@ -33,7 +33,6 @@ def upload_image():
         uploaded = Image.open(file_path)
         uploaded.thumbnail(((top.winfo_width() / 2.25), (top.winfo_height() / 2.25)))
         im = ImageTk.PhotoImage(uploaded)
-
         sign_image.configure(image=im)
         sign_image.image = im
         label.configure(text='')

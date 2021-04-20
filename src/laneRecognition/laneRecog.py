@@ -1,4 +1,5 @@
 import time
+
 import cv2
 import numpy as np
 
@@ -73,7 +74,7 @@ def average_slope_intercept(image, lines):
     return np.array([left_line, right_line])
 
 
-cap = cv2.VideoCapture("test_video/solidYellowLeft.mp4")
+cap = cv2.VideoCapture("test_video/test2.mp4")
 i = 0
 while cap.isOpened():
     try:
@@ -94,6 +95,7 @@ while cap.isOpened():
             averaged_lines = average_slope_intercept(frame, lines)
         line_image = draw_lines(frame, averaged_lines)
         combo_image = cv2.addWeighted(copy_frame, 0.1, line_image, 1, 2)
+        # time.sleep(0.1)
         cv2.imshow("results", combo_image)
         i += 1
     except:
