@@ -1,45 +1,72 @@
-import cmd
-import os
+
 import sys
-import time
 
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QFileDialog, QLabel, QDialog, QGridLayout
-from PyQt5.QtGui import QFont
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from scipy.io import wavfile
-import matplotlib.pyplot as plt
-import numpy as np
 
 
-class UpdateDiag(QMainWindow):
+class SignMain(QMainWindow):
     def __init__(self, parent=None):
-        super(UpdateDiag, self).__init__(parent)
+        super(SignMain, self).__init__(parent)
+        self.left = 100
+        self.top = 100
+        self.width = 600
+        self.height = 400
+        self.dialogs = list()
+        self.setWindowTitle("Sign Recognition")
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+    def createButton(self, y_move, x_move, y_size, x_size, text):
+        button = QPushButton(text, self)
+        button.move(y_move, x_move)
+        button.resize(y_size, x_size)
+        return button
+
+    def createLabel(self,y_move,x_move,text):
+        label = QLabel(self)
+        label.move(y_move, x_move)
+        label.setText(text)
+        label.adjustSize()
+        return label
+
+    def doNothig(self):
+        self.close()
+
+    def closeDialog(self):
+        dialog = CloseDiag(self, self)
+        self.dialogs.append(dialog)
+        dialog.show()
+
+
+class UpdateDiagContinue(QMainWindow):
+    def __init__(self, parent=None):
+        super(UpdateDiagContinue, self).__init__(parent)
         self.left = 500
         self.top = 50
         self.width = 500
         self.height = 200
-        self.iesire = 0
+        self.dialogs = list()
         self.setWindowTitle("Update")
         self.setGeometry(self.left, self.top, self.width, self.height)
-        self.text = QLabel(self)
-        self.text.move(60, 20)
-        self.text.setText('Do you want to check for an update?\n It might take a few minutes')
-        self.text.adjustSize()
+        self.text = self.createLabel(60, 20, 'Do you want to check for an update?\n It might take a few minutes')
         self.button1 = self.createButton(130, 60, 100, 50, 'Yes')
         self.button1.clicked.connect(self.confirmUpdate)
         self.button2 = self.createButton(250, 60, 100, 50, 'No')
         self.button2.clicked.connect(self.doNothig)
-        self.text2 = QLabel(self)
-        self.text3 = QLabel(self)
-        self.text4 = QLabel(self)
-        self.button3 = QPushButton("Yes sir",self)
+        self.text2 = self.createLabel(60,20,"Please wait while we check")
+        self.text2.hide()
+        self.text3 = self.createLabel(60,70,"An update is ready to be downloaded")
+        self.text3.hide()
+        self.text4 = self.createLabel(60, 70, "Download successful")
+        self.text4.hide()
+        self.button3=self.createButton(130,130,100,50,"Yes")
         self.button3.clicked.connect(self.confirmDownload)
-        self.button4 = QPushButton("No sir", self)
-        self.button4.clicked.connect(self.doNothig)
         self.button3.hide()
+        self.button4 = self.createButton(250, 130, 100, 50, "No")
+        self.button4.clicked.connect(self.doNothig)
         self.button4.hide()
+        self.button5=self.createButton(200,130,100,50,'Ok')
+        self.button5.clicked.connect(self.continueNormalExecution)
+        self.button5.hide()
 
     def createButton(self, y_move, x_move, y_size, x_size, text):
         button = QPushButton(text, self)
@@ -54,29 +81,93 @@ class UpdateDiag(QMainWindow):
         self.button1.hide()
         self.button2.hide()
         self.text.hide()
-        self.text2.move(60, 20)
-        self.text2.setText('Please wait while we check')
-        self.text2.adjustSize()
-        # self.text2.hide()
-        self.text3.move(60, 70)
-        self.text3.setText('An update is ready to be downloaded')
-        self.text3.adjustSize()
-        self.button3.move(130,130)
-        self.button3.resize(100,50)
+        self.text3.show()
         self.button3.show()
-        self.button4.move(250, 130)
-        self.button4.resize(100, 50)
         self.button4.show()
+
+    def createLabel(self,y_move,x_move,text):
+        label = QLabel(self)
+        label.move(y_move, x_move)
+        label.setText(text)
+        label.adjustSize()
+        return label
 
     def confirmDownload(self):
         self.button3.hide()
         self.button4.hide()
         self.text2.hide()
         self.text3.hide()
-        self.text4.move(60, 70)
-        self.text4.setText('Download successful')
-        self.text4.adjustSize()
+        self.text4.show()
+        self.button5.show()
+
+    def continueNormalExecution(self):
+        dialog = SignMain(self)
+        self.dialogs.append(dialog)
+        dialog.show()
+        self.close()
+
+
+class UpdateDiag(QMainWindow):
+    def __init__(self, parent=None):
+        super(UpdateDiag, self).__init__(parent)
+        self.left = 500
+        self.top = 50
+        self.width = 500
+        self.height = 200
+        self.setWindowTitle("Update")
+        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.text = self.createLabel(60, 20, 'Do you want to check for an update?\n It might take a few minutes')
+        self.button1 = self.createButton(130, 60, 100, 50, 'Yes')
+        self.button1.clicked.connect(self.confirmUpdate)
+        self.button2 = self.createButton(250, 60, 100, 50, 'No')
+        self.button2.clicked.connect(self.doNothig)
+        self.text2 = self.createLabel(60,20,"Please wait while we check")
+        self.text2.hide()
+        self.text3 = self.createLabel(60,70,"An update is ready to be downloaded")
+        self.text3.hide()
+        self.text4 = self.createLabel(60, 70, "Download successful")
+        self.text4.hide()
+        self.button3=self.createButton(130,130,100,50,"Yes")
+        self.button3.clicked.connect(self.confirmDownload)
+        self.button3.hide()
+        self.button4 = self.createButton(250, 130, 100, 50, "No")
+        self.button4.clicked.connect(self.doNothig)
+        self.button4.hide()
+        self.button5=self.createButton(200,130,100,50,'Ok')
+        self.button5.clicked.connect(self.doNothig)
+        self.button5.hide()
+
+    def createButton(self, y_move, x_move, y_size, x_size, text):
+        button = QPushButton(text, self)
+        button.move(y_move, x_move)
+        button.resize(y_size, x_size)
+        return button
+
+    def doNothig(self):
+        self.close()
+
+    def confirmUpdate(self):
+        self.button1.hide()
+        self.button2.hide()
+        self.text.hide()
+        self.text3.show()
+        self.button3.show()
         self.button4.show()
+
+    def createLabel(self,y_move,x_move,text):
+        label = QLabel(self)
+        label.move(y_move, x_move)
+        label.setText(text)
+        label.adjustSize()
+        return label
+
+    def confirmDownload(self):
+        self.button3.hide()
+        self.button4.hide()
+        self.text2.hide()
+        self.text3.hide()
+        self.text4.show()
+        self.button5.show()
 
 
 class CloseDiag(QMainWindow):
@@ -86,7 +177,6 @@ class CloseDiag(QMainWindow):
         self.top = 50
         self.width = 500
         self.height = 200
-        self.iesire = 0
         self.main = main
         self.setWindowTitle("Are you sure you want to close the app?")
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -131,7 +221,7 @@ class App(QMainWindow):
 
         self.button1 = self.createButton(30, 20, 500, 50, 'Recunoasterea semnelor de circulatie')
         # adaugarea actiunii butonului => functia uploadFile
-        self.button1.clicked.connect(self.uploadFile)
+        self.button1.clicked.connect(self.signRecog)
 
         self.button2 = self.createButton(30, 80, 500, 50, 'Recunoasterea benzii de mers')
         self.button2.clicked.connect(self.doNothig)
@@ -166,6 +256,11 @@ class App(QMainWindow):
 
     def updateDialog(self):
         dialog = UpdateDiag(self)
+        self.dialogs.append(dialog)
+        dialog.show()
+
+    def signRecog(self):
+        dialog = UpdateDiagContinue(self)
         self.dialogs.append(dialog)
         dialog.show()
 
