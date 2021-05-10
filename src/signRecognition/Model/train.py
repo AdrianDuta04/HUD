@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 from tensorflow.python.keras.utils.np_utils import to_categorical
 
-NUM_EPOCHS = 10
-BATCH_SIZE = 64
+NUM_EPOCHS = 100
+BATCH_SIZE = 512
 
 labelNames = open("../../../data/signnames.csv").read().strip().split("\n")[1:]
 labelNames = [l.split(",")[1] for l in labelNames]

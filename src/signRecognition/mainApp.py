@@ -1,6 +1,6 @@
 
 import sys
-
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QFileDialog, QLabel, QDialog, QGridLayout
 
 
@@ -12,8 +12,28 @@ class SignMain(QMainWindow):
         self.width = 600
         self.height = 400
         self.dialogs = list()
+        self.imageFile=""
         self.setWindowTitle("Sign Recognition")
         self.setGeometry(self.left, self.top, self.width, self.height)
+        # Creare textBox
+        self.textbox = QLineEdit(self)
+        self.textbox.move(20, 20)
+        self.textbox.resize(280, 30)
+
+        # Creare buton de incarcare fisier
+        self.button1 = QPushButton('Incarcare fisier', self)
+        self.button1.move(300, 20)
+        self.button1.resize(100, 30)
+        # adaugarea actiunii butonului => functia uploadFile
+        self.button1.clicked.connect(self.uploadFile)
+
+        self.label2 = QLabel(self)
+        self.label2.move(20, 90)
+
+        # self.label3 = QLabel(self)
+        # pixmap = QPixmap('image.jpeg')
+        # self.label3.setPixmap(pixmap)
+        # self.label3.move(100,100)
 
     def createButton(self, y_move, x_move, y_size, x_size, text):
         button = QPushButton(text, self)
@@ -35,6 +55,14 @@ class SignMain(QMainWindow):
         dialog = CloseDiag(self, self)
         self.dialogs.append(dialog)
         dialog.show()
+
+    def uploadFile(self):
+        self.textbox = QLineEdit(self)
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open file')
+        name=file_name.split('/')
+        self.textbox.setText(file_name)
+        self.label2.setText(name[-1])
+        self.label2.adjustSize()
 
 
 class UpdateDiagContinue(QMainWindow):
