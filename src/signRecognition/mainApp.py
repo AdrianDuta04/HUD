@@ -1,60 +1,50 @@
 import sys
 import json
-import cv2
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QFileDialog, QLabel, QDialog, \
     QGridLayout, QCheckBox
-from PIL import Image
 from PyQt5.uic.properties import QtGui
+import cv2
+from PIL import Image
 from tensorflow import keras
 import numpy as np
 import random
 import time
+import imutils
+import pytesseract
 
-classes = {1: 'Speed limit (20km/h)',
-           2: 'Speed limit (30km/h)',
-           3: 'Speed limit (50km/h)',
-           4: 'Speed limit (60km/h)',
-           5: 'Speed limit (70km/h)',
-           6: 'Speed limit (80km/h)',
-           7: 'End of speed limit (80km/h)',
-           8: 'Speed limit (100km/h)',
-           9: 'Speed limit (120km/h)',
-           10: 'No passing',
-           11: 'No passing veh over 3.5 tons',
-           12: 'Right-of-way at intersection',
-           13: 'Priority road',
-           14: 'Yield',
-           15: 'Stop',
-           16: 'No vehicles',
-           17: 'Veh > 3.5 tons prohibited',
-           18: 'No entry',
-           19: 'General caution',
-           20: 'Dangerous curve left',
-           21: 'Dangerous curve right',
-           22: 'Double curve',
-           23: 'Bumpy road',
-           24: 'Slippery road',
-           25: 'Road narrows on the right',
-           26: 'Road work',
-           27: 'Traffic signals',
-           28: 'Pedestrians',
-           29: 'Children crossing',
-           30: 'Bicycles crossing',
-           31: 'Beware of ice/snow',
-           32: 'Wild animals crossing',
-           33: 'End speed + passing limits',
-           34: 'Turn right ahead',
-           35: 'Turn left ahead',
-           36: 'Ahead only',
-           37: 'Go straight or right',
-           38: 'Go straight or left',
-           39: 'Keep right',
-           40: 'Keep left',
-           41: 'Roundabout mandatory',
-           42: 'End of no passing',
-           43: 'End no passing veh > 3.5 tons'}
+
+def license_plate(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # convert to grey scale
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)  # Blur to reduce noise
+    edged = cv2.Canny(gray, 30, 200)  # Perform Edge detection
+    cnts = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:10]
+    screenCnt = None
+    for c in cnts:
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.018 * peri, True)
+        if len(approx) == 4:
+            screenCnt = approx
+            break
+    if screenCnt is None:
+        detected = 0
+        print("No contour detected")
+    else:
+        detected = 1
+    if detected == 1:
+        cv2.drawContours(image, [screenCnt], -1, (0, 255, 0), 3)
+    mask = np.zeros(gray.shape, np.uint8)
+    new_image = cv2.drawContours(mask, [screenCnt], 0, 255, -1, )
+    new_image = cv2.bitwise_and(image, image, mask=mask)
+    (x, y) = np.where(mask == 255)
+    (topx, topy) = (np.min(x), np.min(y))
+    (bottomx, bottomy) = (np.max(x), np.max(y))
+    Cropped = gray[topx:bottomx + 1, topy:bottomy + 1]
+    text = pytesseract.image_to_string(Cropped, config='--psm 11')
+    print("Detected Number is:", text)
 
 
 def filter_regions(rects):
@@ -70,8 +60,7 @@ def filter_regions(rects):
     return new_rects
 
 
-def searchSignQaulity(input):
-    image = cv2.imread(input)
+def searchSignQaulity(image, arr):
     new = image[image.shape[0]:(int(image.shape[0] / 9)):-1, image.shape[1]:int(image.shape[1] / 2):-1]
     new = new[image.shape[0]:int(image.shape[0] / 4):-1, image.shape[1]:0:-1]
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
@@ -88,8 +77,7 @@ def searchSignQaulity(input):
     return new
 
 
-def searchSignFast(input):
-    image = cv2.imread(input)
+def searchSignFast(image, arr):
     new = image[image.shape[0]:(int(image.shape[0] / 9)):-1, image.shape[1]:int(image.shape[1] / 2):-1]
     new = new[image.shape[0]:int(image.shape[0] / 4):-1, image.shape[1]:0:-1]
     ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
@@ -101,8 +89,7 @@ def searchSignFast(input):
     for (x, y, w, h) in rects:
         color = [random.randint(0, 255) for j in range(0, 3)]
         cv2.rectangle(new, (x, y), (x + w, y + h), color, 2)
-    cv2.imshow("Output", new)
-    key = cv2.waitKey(0) & 0xFF
+        arr.append(new[y:(y + h), x:(x + w)])
     return new
 
 
@@ -118,14 +105,16 @@ def load_model():
     print(sign)
 
 
-def classify(file_path):
-    image = Image.open(file_path)
+def classify(image):
     image = image.resize((32, 32))
     image = np.expand_dims(image, axis=0)
     image = np.array(image)
-    pred = model.predict_classes([image])[0]
-    sign = classes[pred + 1]
-    return sign, pred
+    pred = model.predict([image])
+    pred_classes = model.predict_classes([image])
+    prediction_scor = np.max(pred[0])
+    print(prediction_scor)
+    sign = classes[pred_classes[0] + 1]
+    return sign, pred_classes[0]
 
 
 def interested_region(img):
@@ -198,6 +187,29 @@ def average_slope_intercept(image, lines):
     return np.array([left_line, right_line])
 
 
+def color_seg(img):
+    blur = cv2.blur(img, (5, 5))
+    blur0 = cv2.medianBlur(blur, 5)
+    blur1 = cv2.GaussianBlur(blur0, (5, 5), 0)
+    blur2 = cv2.bilateralFilter(blur1, 9, 75, 75)
+    hsv = cv2.cvtColor(blur2, cv2.COLOR_BGR2HSV)
+    low_red1 = np.array([0, 70, 60])
+    high_red1 = np.array([10, 255, 255])
+    mask1 = cv2.inRange(hsv, low_red1, high_red1)
+    low_red2 = np.array([170, 70, 60])
+    high_red2 = np.array([180, 255, 255])
+    mask2 = cv2.inRange(hsv, low_red2, high_red2)
+    low_blue = np.array([94, 127, 20])
+    high_blue = np.array([126, 255, 200])
+    mask3 = cv2.inRange(hsv, low_blue, high_blue)
+    light_white = (0, 20, 80)
+    dark_white = (220, 220, 220)
+    mask_white = cv2.inRange(hsv, light_white, dark_white)
+    final_mask = mask1 + mask_white + mask2 + mask3
+    final_result = cv2.bitwise_and(img, img, mask=final_mask)
+    return final_result
+
+
 def laneR(title):
     cap = cv2.VideoCapture(title)
     i = 0
@@ -232,13 +244,58 @@ def laneR(title):
     cv2.destroyAllWindows()
 
 
+classes = {1: 'Speed limit (20km/h)',
+           2: 'Speed limit (30km/h)',
+           3: 'Speed limit (50km/h)',
+           4: 'Speed limit (60km/h)',
+           5: 'Speed limit (70km/h)',
+           6: 'Speed limit (80km/h)',
+           7: 'End of speed limit (80km/h)',
+           8: 'Speed limit (100km/h)',
+           9: 'Speed limit (120km/h)',
+           10: 'No passing',
+           11: 'No passing veh over 3.5 tons',
+           12: 'Right-of-way at intersection',
+           13: 'Priority road',
+           14: 'Yield',
+           15: 'Stop',
+           16: 'No vehicles',
+           17: 'Veh > 3.5 tons prohibited',
+           18: 'No entry',
+           19: 'General caution',
+           20: 'Dangerous curve left',
+           21: 'Dangerous curve right',
+           22: 'Double curve',
+           23: 'Bumpy road',
+           24: 'Slippery road',
+           25: 'Road narrows on the right',
+           26: 'Road work',
+           27: 'Traffic signals',
+           28: 'Pedestrians',
+           29: 'Children crossing',
+           30: 'Bicycles crossing',
+           31: 'Beware of ice/snow',
+           32: 'Wild animals crossing',
+           33: 'End speed + passing limits',
+           34: 'Turn right ahead',
+           35: 'Turn left ahead',
+           36: 'Ahead only',
+           37: 'Go straight or right',
+           38: 'Go straight or left',
+           39: 'Keep right',
+           40: 'Keep left',
+           41: 'Roundabout mandatory',
+           42: 'End of no passing',
+           43: 'End no passing veh > 3.5 tons'}
+
+
 class SearchSign(QMainWindow):
     def __init__(self, parent=None):
         super(SearchSign, self).__init__(parent)
         self.left = 100
         self.top = 100
-        self.width = 700
-        self.height = 700
+        self.width = 1000
+        self.height = 1000
         self.dialogs = list()
         self.imageFile = ""
         self.setWindowTitle("Sign Search")
@@ -259,8 +316,14 @@ class SearchSign(QMainWindow):
         self.button3 = self.createButton(550, 150, 100, 30, 'Qaulity')
         self.button3.clicked.connect(self.searchQuality)
         self.button3.hide()
-        self.button5 = self.createButton(300, 300, 200, 50, 'Exit')
-        self.button5.clicked.connect(self.doNothig)
+
+        self.button4 = self.createButton(550, 180, 160, 30, 'Image segmenation fast')
+        self.button4.clicked.connect(self.segmentation_fast)
+        self.button4.hide()
+
+        self.button5 = self.createButton(550, 210, 160, 30, 'Image segmenation quality')
+        self.button5.clicked.connect(self.segmentation_quality)
+        self.button5.hide()
 
         self.video = ""
         self.label2 = QLabel(self)
@@ -269,10 +332,34 @@ class SearchSign(QMainWindow):
         self.lbPredict = QLabel(self)
 
     def searchFast(self):
-        image = searchSignFast(self.imageFile)
+        image = cv2.imread(self.imageFile)
+        arr = []
+        new_image = searchSignFast(image, arr)
+
+    def segmentation_fast(self):
+        img = cv2.imread(self.imageFile)
+        final_result = color_seg(img)
+        arr = []
+        new_image = searchSignFast(final_result, arr)
+        for i in arr:
+            image = Image.fromarray(i)
+            sign, pred = classify(image)
+            image2 = cv2.imread(
+                '/home/adrian/Documents/licenta/HUD/src/signRecognition/signs/' + str(pred + 1) + '.png')
+            image2 = cv2.resize(image2, (160, 160))
+            cv2.imshow("Rectangle ", image2)
+            key = cv2.waitKey(0) & 0xFF
+            cv2.imshow("Rectangle ", i)
+            key = cv2.waitKey(0) & 0xFF
+
+    def segmentation_quality(self):
+        img = cv2.imread(self.imageFile)
+        final_result = color_seg(img)
+        searchSignQaulity(final_result)
 
     def searchQuality(self):
-        searchSignQaulity(self.imageFile)
+        image = cv2.imread(self.imageFile)
+        searchSignQaulity(image)
 
     def createButton(self, y_move, x_move, y_size, x_size, text):
         button = QPushButton(text, self)
@@ -304,6 +391,8 @@ class SearchSign(QMainWindow):
         self.lb.setPixmap(pixmap.scaled(self.lb.size(), Qt.IgnoreAspectRatio))
         self.button2.show()
         self.button3.show()
+        self.button4.show()
+        self.button5.show()
 
 
 class LaneMain(QMainWindow):
@@ -415,7 +504,8 @@ class SignMain(QMainWindow):
         self.close()
 
     def predict(self):
-        sign, pred = classify(self.imageFile)
+        image = Image.open(self.imageFile)
+        sign, pred = classify(image)
         image = cv2.imread('/home/adrian/Documents/licenta/HUD/src/signRecognition/signs/' + str(pred + 1) + '.png')
         image = cv2.resize(image, (160, 160))
         image = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888).rgbSwapped()
@@ -662,8 +752,14 @@ class App(QMainWindow):
         self.button6 = self.createButton(30, 140, 500, 50, 'Cautare semn de circulatie')
         self.button6.clicked.connect(self.searchSign)
 
+        self.button7 = self.createButton(30, 250, 500, 50, 'Accident')
+        self.button7.clicked.connect(self.accident)
+
         self.textbox = QLineEdit(self)
         self.textbox.hide()
+
+    def accident(self):
+        license_plate(cv2.imread("../main/402996.jpg"))
 
     def uploadFile(self):
         self.textbox.show()
