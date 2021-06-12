@@ -45,6 +45,9 @@ def license_plate(image):
     Cropped = gray[topx:bottomx + 1, topy:bottomy + 1]
     text = pytesseract.image_to_string(Cropped, config='--psm 11')
     print("Detected Number is:", text)
+    cv2.imshow("Frame", image)
+    cv2.imshow('Cropped', Cropped)
+    cv2.waitKey(0)
 
 
 def filter_regions(rects):
