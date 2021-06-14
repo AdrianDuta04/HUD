@@ -1,9 +1,11 @@
 import sys
 import json
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt
+import threading
+
+from PyQt5.QtGui import QPixmap, QImage, QIcon, QFont
+from PyQt5.QtCore import Qt, QUrl, QSize
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QFileDialog, QLabel, QDialog, \
-    QGridLayout, QCheckBox
+    QGridLayout, QCheckBox, QStyle, QVBoxLayout, QHBoxLayout, QStatusBar, QSlider, QWidget
 from PyQt5.uic.properties import QtGui
 import cv2
 from PIL import Image
@@ -13,9 +15,30 @@ import random
 import time
 import imutils
 import pytesseract
+import _thread
 
 
-def license_plate(image):
+def hasNumbers(inputString):
+    return any(char.isdigit() for char in inputString)
+
+
+def hasLetters(inputString):
+    return any(char in 'QWERTYUIOPASDFGHJKLZXCVBNM' for char in inputString)
+
+
+def hasSpecialChars(inputString):
+    return any(char in '[]()*!@#$%^&{}:;""<>,.~`_|\\+=' for char in inputString)
+
+
+def hasLittleChars(inputString):
+    return any(char in 'qwertyuiopasdfghjklzxcvbnm' for char in inputString)
+
+
+def startWrong(inputString):
+    return inputString[0] in '-'
+
+
+def license_plate(image, license_list):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # convert to grey scale
     gray = cv2.bilateralFilter(gray, 11, 17, 17)  # Blur to reduce noise
     edged = cv2.Canny(gray, 30, 200)  # Perform Edge detection
@@ -31,23 +54,32 @@ def license_plate(image):
             break
     if screenCnt is None:
         detected = 0
-        print("No contour detected")
     else:
         detected = 1
     if detected == 1:
         cv2.drawContours(image, [screenCnt], -1, (0, 255, 0), 3)
-    mask = np.zeros(gray.shape, np.uint8)
-    new_image = cv2.drawContours(mask, [screenCnt], 0, 255, -1, )
-    new_image = cv2.bitwise_and(image, image, mask=mask)
-    (x, y) = np.where(mask == 255)
-    (topx, topy) = (np.min(x), np.min(y))
-    (bottomx, bottomy) = (np.max(x), np.max(y))
-    Cropped = gray[topx:bottomx + 1, topy:bottomy + 1]
-    text = pytesseract.image_to_string(Cropped, config='--psm 11')
-    print("Detected Number is:", text)
-    cv2.imshow("Frame", image)
-    cv2.imshow('Cropped', Cropped)
-    cv2.waitKey(0)
+        mask = np.zeros(gray.shape, np.uint8)
+        new_image = cv2.drawContours(mask, [screenCnt], 0, 255, -1, )
+        new_image = cv2.bitwise_and(image, image, mask=mask)
+        (x, y) = np.where(mask == 255)
+        (topx, topy) = (np.min(x), np.min(y))
+        (bottomx, bottomy) = (np.max(x), np.max(y))
+        Cropped = gray[topx:bottomx + 1, topy:bottomy + 1]
+        text = pytesseract.image_to_string(Cropped, config='--psm 11')
+        text = text.strip()
+        text = text.replace('\n', '')
+        text = text.replace('\t', '')
+        text = text.replace(' ', '')
+        text = text.strip('\n')
+        if checkValidLicense(license_list, text):
+            license_list.append(text)
+            print(license_list)
+            print("Detected Number is:", text)
+
+
+def checkValidLicense(license_list, text):
+    return 5 < len(text) < 10 and hasNumbers(text) and hasLetters(text) and not hasSpecialChars(
+        text) and not hasLittleChars(text) and not startWrong(text) and (text not in license_list)
 
 
 def filter_regions(rects):
@@ -115,7 +147,6 @@ def classify(image):
     pred = model.predict([image])
     pred_classes = model.predict_classes([image])
     prediction_scor = np.max(pred[0])
-    print(prediction_scor)
     sign = classes[pred_classes[0] + 1]
     return sign, pred_classes[0]
 
@@ -213,6 +244,72 @@ def color_seg(img):
     return final_result
 
 
+def signThread(cap, ThreadId, signsArray):
+    i = 0
+    while cap.isOpened():
+        _, frame = cap.read()
+        image_for_sign = frame
+        if i % 30 == 0:
+            final_result = color_seg(image_for_sign)
+            arr = []
+            new_image = searchSignFast(final_result, arr)
+            for j in arr:
+                image = Image.fromarray(j)
+                sign, pred = classify(image)
+                if pred not in signsArray:
+                    signsArray.append(pred)
+
+
+def laneThread(cap, threadId):
+    i = 0
+    while cap.isOpened():
+        try:
+            _, frame = cap.read()
+            copy_frame = frame
+            frame = cv2.addWeighted(frame, 1, frame, 0.1, 2)
+            if frame is None:
+                print("end of video file")
+                break
+            combo_image = frame
+            image_for_sign = frame
+            if i % 12 == 0:
+                canny_image = canny_edge_detector(frame)
+                cropped_image = -interested_region(canny_image)
+                lines = cv2.HoughLinesP(cropped_image, 2, np.pi / 180, 50,
+                                        np.array([]), minLineLength=20,
+                                        maxLineGap=3)
+
+                averaged_lines = average_slope_intercept(frame, lines)
+            line_image = draw_lines(frame, averaged_lines)
+            combo_image = cv2.addWeighted(copy_frame, 0.1, line_image, 1, 2)
+            # time.sleep(0.1)
+            cv2.imshow("results", combo_image)
+            i += 1
+        except:
+            print("Image quality does not allow line recognition")
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+def laneSign(videoIni):
+    video = cv2.VideoCapture(videoIni)
+    signsArray = []
+    video2 = cv2.VideoCapture(videoIni)
+    try:
+        t1 = threading.Thread(target=signThread, args=(video2, 1, signsArray))
+        t2 = threading.Thread(target=laneThread, args=(video, 2))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+        print(signsArray)
+    except:
+        print("Error: unable to start thread")
+
+
 def laneR(title):
     cap = cv2.VideoCapture(title)
     i = 0
@@ -245,6 +342,20 @@ def laneR(title):
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+def license_place_video(cap):
+    license_list = []
+    while cap.isOpened():
+        _, frame = cap.read()
+        license_plate(frame, license_list)
+        cv2.waitKey(0)
+
+
+def accidentPlate(list_of_frames):
+    license_list = []
+    for frame in list_of_frames:
+        license_plate(frame, license_list)
 
 
 classes = {1: 'Speed limit (20km/h)',
@@ -290,6 +401,114 @@ classes = {1: 'Speed limit (20km/h)',
            41: 'Roundabout mandatory',
            42: 'End of no passing',
            43: 'End no passing veh > 3.5 tons'}
+
+
+class MainDialog(QMainWindow):
+    def __init__(self, main, parent=None):
+        super(MainDialog, self).__init__(parent)
+        self.left = 100
+        self.top = 100
+        self.width = 1000
+        self.height = 1000
+        self.main = main
+        self.setWindowTitle("Main functionality display")
+
+        self.text = self.createLabel(60, 20, 'HEAD UP DISPLAY')
+        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.button3 = self.createButton(130, 60, 100, 50, 'Accident')
+        self.button3.clicked.connect(self.pericol)
+        self.button3.hide()
+        self.button1 = self.createButton(240, 60, 100, 30, 'Incarcare fisier')
+        self.button1.clicked.connect(self.uploadFile)
+        self.button2 = self.createButton(200, 120, 100, 30, 'Process')
+        self.button2.clicked.connect(self.combine)
+        self.button2.hide()
+        self.acc = 0
+
+    def createButton(self, y_move, x_move, y_size, x_size, text):
+        button = QPushButton(text, self)
+        button.move(y_move, x_move)
+        button.resize(y_size, x_size)
+        return button
+
+    def createLabel(self, y_move, x_move, text):
+        label = QLabel(self)
+        label.move(y_move, x_move)
+        label.setText(text)
+        label.adjustSize()
+        return label
+
+    def accident(self):
+        license_place_video(cv2.VideoCapture(self.video))
+
+    def pericol(self):
+        self.acc = 1
+
+    def process(self):
+        laneSign(self.video)
+
+    def uploadFile(self):
+        self.textbox = QLineEdit(self)
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open file')
+        self.video = file_name[38:]
+        self.video = ".." + self.video
+        self.textbox.setText(file_name)
+        self.button2.show()
+        self.button3.show()
+
+    def doNothig(self):
+        self.close()
+
+    def combine(self):
+        cap = cv2.VideoCapture(self.video)
+        i = 0
+        signsArray = []
+        accidentScene = []
+        while cap.isOpened():
+            try:
+                if self.acc == 1:
+                    accidentPlate(accidentScene)
+                    break
+                _, frame = cap.read()
+                if len(accidentScene) == 60:
+                    accidentScene.pop()
+                accidentScene.append(frame)
+                copy_frame = frame
+                frame = cv2.addWeighted(frame, 1, frame, 0.1, 2)
+                if frame is None:
+                    print("end of video file")
+                    break
+                combo_image = frame
+                image_for_sign = frame
+                if i % 12 == 0:
+                    canny_image = canny_edge_detector(frame)
+                    cropped_image = -interested_region(canny_image)
+                    lines = cv2.HoughLinesP(cropped_image, 2, np.pi / 180, 50,
+                                            np.array([]), minLineLength=20,
+                                            maxLineGap=3)
+
+                    averaged_lines = average_slope_intercept(frame, lines)
+                image_for_sign = frame
+                if i % 30 == 0:
+                    final_result = color_seg(image_for_sign)
+                    arr = []
+                    new_image = searchSignFast(final_result, arr)
+                    for j in arr:
+                        image = Image.fromarray(j)
+                        sign, pred = classify(image)
+                        if pred not in signsArray:
+                            signsArray.append(pred)
+                line_image = draw_lines(frame, averaged_lines)
+                combo_image = cv2.addWeighted(copy_frame, 0.1, line_image, 1, 2)
+                # time.sleep(0.1)
+                cv2.imshow("results", combo_image)
+                i += 1
+            except:
+                print("Image quality does not allow line recognition")
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        cap.release()
+        cv2.destroyAllWindows()
 
 
 class SearchSign(QMainWindow):
@@ -351,9 +570,6 @@ class SearchSign(QMainWindow):
                 '/home/adrian/Documents/licenta/HUD/src/signRecognition/signs/' + str(pred + 1) + '.png')
             image2 = cv2.resize(image2, (160, 160))
             cv2.imshow("Rectangle ", image2)
-            key = cv2.waitKey(0) & 0xFF
-            cv2.imshow("Rectangle ", i)
-            key = cv2.waitKey(0) & 0xFF
 
     def segmentation_quality(self):
         img = cv2.imread(self.imageFile)
@@ -756,13 +972,10 @@ class App(QMainWindow):
         self.button6.clicked.connect(self.searchSign)
 
         self.button7 = self.createButton(30, 250, 500, 50, 'Accident')
-        self.button7.clicked.connect(self.accident)
+        self.button7.clicked.connect(self.mainDiag)
 
         self.textbox = QLineEdit(self)
         self.textbox.hide()
-
-    def accident(self):
-        license_plate(cv2.imread("../main/402996.jpg"))
 
     def uploadFile(self):
         self.textbox.show()
@@ -790,6 +1003,11 @@ class App(QMainWindow):
 
     def laneDialog(self):
         dialog = LaneMain(self)
+        self.dialogs.append(dialog)
+        dialog.show()
+
+    def mainDiag(self):
+        dialog = MainDialog(self)
         self.dialogs.append(dialog)
         dialog.show()
 
