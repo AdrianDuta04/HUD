@@ -75,6 +75,8 @@ def license_plate(image, license_list):
             license_list.append(text)
             print(license_list)
             print("Detected Number is:", text)
+            cv2.imshow('license',Cropped)
+            key = cv2.waitKey(0) & 0xFF
 
 
 def checkValidLicense(license_list, text):
@@ -467,6 +469,8 @@ class MainDialog(QMainWindow):
         while cap.isOpened():
             try:
                 if self.acc == 1:
+                    cap.release()
+                    cv2.destroyAllWindows()
                     accidentPlate(accidentScene)
                     break
                 _, frame = cap.read()
@@ -507,6 +511,12 @@ class MainDialog(QMainWindow):
                 print("Image quality does not allow line recognition")
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+        for i in signsArray:
+            image2 = cv2.imread(
+                '/home/adrian/Documents/licenta/HUD/src/signRecognition/signs/' + str(i + 1) + '.png')
+            image2 = cv2.resize(image2, (160, 160))
+            cv2.imshow("Rectangle ", image2)
+            key = cv2.waitKey(0) & 0xFF
         cap.release()
         cv2.destroyAllWindows()
 
