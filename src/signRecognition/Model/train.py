@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from time import time
 import matplotlib.pyplot as plt
-
+import json
 from tensorflow.python.keras.utils.np_utils import to_categorical
 
 NUM_EPOCHS = 100
@@ -49,6 +49,10 @@ y_test = to_categorical(y_test, 43)
 history = model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=NUM_EPOCHS, validation_data=(X_test, y_test))
 now = time()
 model.save("../trained_models/sign_recognition_model"+str(int(now))+".h5")
+file = open("version.json", 'w')
+data = {'version': now}
+json.dump(data, file)
+file.close()
 model.save("../trained_models/old_models/sign_recognition_model"+str(int(now))+".h5")
 
 plt.figure(0)

@@ -1,7 +1,7 @@
 import sys
 import json
 import threading
-
+import requests
 from PyQt5.QtGui import QPixmap, QImage, QIcon, QFont
 from PyQt5.QtCore import Qt, QUrl, QSize
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLineEdit, QFileDialog, QLabel, QDialog, \
@@ -888,6 +888,7 @@ class SearchSign(QMainWindow):
         final_result = color_seg(img)
         arr = []
         new_image = searchSignFast(final_result, arr)
+        cv2.imshow("Rectangle ", final_result)
         for i in arr:
             image = Image.fromarray(i)
             sign, pred = classify(image)
@@ -897,13 +898,15 @@ class SearchSign(QMainWindow):
             cv2.imshow("Rectangle ", image2)
 
     def segmentation_quality(self):
+        arr=[]
         img = cv2.imread(self.imageFile)
         final_result = color_seg(img)
-        searchSignQaulity(final_result)
+        searchSignQaulity(final_result,arr)
 
     def searchQuality(self):
         image = cv2.imread(self.imageFile)
-        searchSignQaulity(image)
+        arr=[]
+        searchSignQaulity(image,arr)
 
     def createButton(self, y_move, x_move, y_size, x_size, text):
         button = QPushButton(text, self)
@@ -1180,6 +1183,8 @@ class UpdateDiag(QMainWindow):
         self.text3.hide()
         self.text4 = self.createLabel(60, 70, "Download successful")
         self.text4.hide()
+        self.text4 = self.createLabel(60, 70, "Nu exista actualizari disponibile")
+        self.text4.hide()
         self.button3 = self.createButton(130, 130, 100, 50, "Yes")
         self.button3.clicked.connect(self.confirmDownload)
         self.button3.hide()
@@ -1200,17 +1205,25 @@ class UpdateDiag(QMainWindow):
         self.close()
 
     def confirmUpdate(self):
-        data = []
-        if self.box.isChecked():
-            with open("preference.json", 'w') as output:
-                data.append({'checkUpdate': 'yes'})
-                json.dump(data, output)
+        file = open("preference.json", 'r')
+        json_data = json.load(file)
+        x = requests.get('https://127.0.0.1:8000/check')
+        version = x.json()
+        file.close()
         self.button1.hide()
         self.button2.hide()
         self.text.hide()
-        self.text3.show()
-        self.button3.show()
-        self.button4.show()
+        if version > json_data['version'] :
+            self.text3.show()
+            self.button3.show()
+            self.button4.show()
+            if self.box.isChecked():
+                with open("preference.json", 'w') as output:
+                    data = {'checkUpdate': "yes", 'version': version}
+                    json.dump(data, output)
+        else :
+            self.text4.show()
+            self.button5.show()
 
     def createLabel(self, y_move, x_move, text):
         label = QLabel(self)
@@ -1220,6 +1233,11 @@ class UpdateDiag(QMainWindow):
         return label
 
     def confirmDownload(self):
+        x = requests.get('https://127.0.0.1:8000/download')
+        print(x.content)
+        f = open("sign_recognition_model_last.h5", "wb")
+        f.write(x.content)
+        f.close()
         self.button3.hide()
         self.button4.hide()
         self.text2.hide()

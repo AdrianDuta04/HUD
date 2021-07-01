@@ -5,9 +5,9 @@ class Model
 {
   public function getLastTrainedNetwork():string
   {
-      $filePath=scandir("../src/NN/trained_models");
-      $filePath=substr(end($filePath),27,10);
-      return $filePath;
+      $jsonData = file_get_contents('../src/Entity/version.json');
+      $array = json_decode($jsonData, true);
+      return $array['version'];
   }
   public function getModel():array {
       $filePath=scandir("../src/NN/trained_models");

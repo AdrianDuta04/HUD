@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\Model;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
@@ -15,12 +16,11 @@ class UpdateController extends AbstractController
     /**
      * @Route("/check")
      */
-    public function check(): Response
+    public function check(): JsonResponse
     {
         $n = new Model();
         $arr=$n->getLastTrainedNetwork();
-
-        return new Response(
+        return new JsonResponse(
             $arr,200
         );
     }
